@@ -247,10 +247,20 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 # ─── START ────────────────────────────────────────────
-# Start batch flusher immediately
-flusher_thread = threading.Thread(target=batch_flusher)
-flusher_thread.daemon = True
-flusher_thread.start()
+flusher_started = False
+
+@app.before_request
+def start_flusher():
+    global flusher_started
+
+    if not flusher_started:
+        thread = threading.Thread(target=batch_flusher)
+        thread.daemon = True
+        thread.start()
+
+        flusher_started = True
+
+        logging.info("Batch flusher thread started")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
