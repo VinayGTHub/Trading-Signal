@@ -177,7 +177,7 @@ def process_batch(batch):
 
         exch, sid = lookup_security_id(symbol)
         if not sid:
-            logging.warning(f"No security ID for symbol: {symbol}")
+            logging.warning(f"No security ID found for symbol: {symbol}")
             continue
 
         enriched.append((data, exch, sid))
@@ -188,20 +188,27 @@ def process_batch(batch):
             exchange_groups[exch].append(sid)
 
     if not exchange_groups:
-        logging.warning("No valid symbols to fetch from Dhan")
+        logging.warning("No valid symbols — nothing to fetch from Dhan")
         return
 
     logging.info(f"Fetching market data for: {exchange_groups}")
     market_data = fetch_bulk_market_data(exchange_groups)
 
     if not market_data:
-        logging.warning("Empty market data returned from Dhan")
+        logging.warning("Empty market data from Dhan — sending signal anyway")
+        # ✅ Even if Dhan returns nothing (market closed), still alert on Telegram
+        for data, exch, sid in enriched:
+            msg = f"{data['direction']} {data['symbol']} @ {data.get('price', 'N/A')} [Market Closed]"
+            logging.info(f"Sending Telegram (no market data): {msg}")
+            send_telegram(msg)
         return
 
     for data, exch, sid in enriched:
         instrument = market_data.get(str(sid))
         if not instrument:
-            logging.warning(f"No market data for SID {sid}")
+            logging.warning(f"No instrument data for SID {sid} — sending signal anyway")
+            msg = f"{data['direction']} {data['symbol']} @ {data.get('price', 'N/A')} [No LTP]"
+            send_telegram(msg)
             continue
 
         ltp      = instrument.get("last_price", 0)
@@ -209,18 +216,20 @@ def process_batch(batch):
         sell_qty = instrument.get("sell_quantity", 0)
         total    = buy_qty + sell_qty
 
-        if total > 0:
-            buyer_strength  = buy_qty / total
-            seller_strength = sell_qty / total
-
-            if data["direction"] == "BUY" and buyer_strength < seller_strength:
-                logging.info(f"BUY filtered out — weak buyer strength for {data['symbol']}")
-                continue
-            if data["direction"] == "SELL" and seller_strength < buyer_strength:
-                logging.info(f"SELL filtered out — weak seller strength for {data['symbol']}")
-                continue
+        # ─── ORDER FLOW FILTER (disabled during market closed / testing) ───
+        # TODO: Re-enable this when live during market hours
+        # if total > 0:
+        #     buyer_strength  = buy_qty / total
+        #     seller_strength = sell_qty / total
+        #     if data["direction"] == "BUY" and buyer_strength < seller_strength:
+        #         logging.info(f"BUY filtered — weak buyers for {data['symbol']}")
+        #         continue
+        #     if data["direction"] == "SELL" and seller_strength < buyer_strength:
+        #         logging.info(f"SELL filtered — weak sellers for {data['symbol']}")
+        #         continue
 
         msg = f"{data['direction']} {data['symbol']} @ {ltp}"
+        logging.info(f"Sending Telegram: {msg}")
         send_telegram(msg)
 
 # ─── BACKGROUND FLUSHER ───────────────────────────────
