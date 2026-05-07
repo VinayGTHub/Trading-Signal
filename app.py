@@ -214,9 +214,12 @@ def batch_flusher():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     global LAST_SIGNAL_TIME
-    logging.info(f"Received webhook: {raw}")
+
     try:
         raw = request.get_data().decode('utf-8')
+
+        logging.info(f"Received webhook: {raw}")
+
         data = parse_signal(raw)
 
         with LOCK:
