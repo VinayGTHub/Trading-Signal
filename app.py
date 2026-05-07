@@ -40,7 +40,7 @@ def ensure_csv():
 def lookup_security_id(symbol):
     symbol = symbol.upper()
     if symbol in SYMBOL_CACHE:
-        logging.info(f"Cache hit: {symbol} → {SYMBOL_CACHE[symbol]}")
+        #logging.info(f"Cache hit: {symbol} → {SYMBOL_CACHE[symbol]}")
         return SYMBOL_CACHE[symbol]
 
     ensure_csv()
@@ -62,7 +62,7 @@ def lookup_security_id(symbol):
                     exch_key = "NSE_EQ"
 
                 SYMBOL_CACHE[symbol] = (exch_key, sid)
-                logging.info(f"Symbol found: {symbol} → {exch_key}, {sid}")
+                #logging.info(f"Symbol found: {symbol} → {exch_key}, {sid}")
                 return exch_key, sid
 
     logging.error(f"❌ Symbol not found in CSV: {symbol}")
@@ -78,11 +78,11 @@ def fetch_market_data(exch, sid):
         "Content-Type": "application/json"
     }
     payload = {exch: [int(sid)]}
-    logging.info(f"Dhan payload: {payload}")
+    #logging.info(f"Dhan payload: {payload}")
 
     try:
         r = requests.post(url, json=payload, headers=headers, timeout=5)
-        logging.info(f"Dhan status: {r.status_code} | body: {r.text}")
+        #logging.info(f"Dhan status: {r.status_code} | body: {r.text}")
 
         if r.status_code != 200:
             logging.error(f"❌ Dhan error: {r.text}")
@@ -102,7 +102,7 @@ def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
         r = requests.post(url, json={"chat_id": CHAT_ID, "text": msg}, timeout=5)
-        logging.info(f"Telegram response: {r.status_code} | {r.text}")
+        #logging.info(f"Telegram response: {r.status_code} | {r.text}")
     except Exception as e:
         logging.error(f"❌ Telegram exception: {e}", exc_info=True)
 
@@ -168,10 +168,10 @@ def process_signal(data):
             seller_strength = sell_qty / total
 
             if direction == "BUY" and buyer_strength < seller_strength:
-                logging.info(f"⛔ BUY filtered — weak buyer strength ({buyer_strength:.2f})")
+                #logging.info(f"⛔ BUY filtered — weak buyer strength ({buyer_strength:.2f})")
                 return
             if direction == "SELL" and seller_strength < buyer_strength:
-                logging.info(f"⛔ SELL filtered — weak seller strength ({seller_strength:.2f})")
+                #logging.info(f"⛔ SELL filtered — weak seller strength ({seller_strength:.2f})")
                 return
 
         msg = f"✅ {direction} {symbol} @ {ltp}"
