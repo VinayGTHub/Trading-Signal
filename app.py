@@ -91,8 +91,9 @@ def fetch_bulk_market_data(exchange_groups):
         if r.status_code != 200:
             logging.error(f"Dhan error: {r.text}")
             return {}
-
+        
         data = r.json().get("data", {})
+        logging.info("Market data: Success")
         result = {}
 
         for exch, instruments in data.items():
@@ -137,7 +138,7 @@ def parse_signal(raw):
 # ─── PROCESS BATCH ────────────────────────────────────
 def process_batch(batch):
     logging.info(f"Processing batch of {len(batch)} signals")
-
+    logging.info("Entered process_batch")
     exchange_groups = {}
     enriched = []
 
@@ -194,21 +195,34 @@ def process_batch(batch):
 def batch_flusher():
     global BATCH, LAST_SIGNAL_TIME
 
+    logging.info("Batch flusher started")
+
     while True:
         time.sleep(0.2)
 
-        with LOCK:
-            if not BATCH:
-                continue
+        batch_copy = []
 
-            now = time.time()
+        try:
+            with LOCK:
+                if not BATCH:
+                    continue
 
-            if (now - LAST_SIGNAL_TIME > BATCH_TIMEOUT) or len(BATCH) >= MAX_BATCH_SIZE:
-                batch_copy = BATCH.copy()
-                BATCH = []
+                now = time.time()
 
-        if batch_copy:
-            process_batch(batch_copy)
+                if (
+                    now - LAST_SIGNAL_TIME > BATCH_TIMEOUT
+                    or len(BATCH) >= MAX_BATCH_SIZE
+                ):
+                    batch_copy = BATCH.copy()
+                    BATCH = []
+
+            if batch_copy:
+                logging.info(f"Processing batch size: {len(batch_copy)}")
+                process_batch(batch_copy)
+
+        except Exception as e:
+            logging.error(f"Batch flusher error: {e}")
+
 
 # ─── WEBHOOK ──────────────────────────────────────────
 @app.route('/webhook', methods=['POST'])
@@ -233,8 +247,10 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 # ─── START ────────────────────────────────────────────
-# Start background thread ALWAYS
-threading.Thread(target=batch_flusher, daemon=True).start()
+# Start batch flusher immediately
+flusher_thread = threading.Thread(target=batch_flusher)
+flusher_thread.daemon = True
+flusher_thread.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
