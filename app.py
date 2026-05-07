@@ -292,5 +292,7 @@ def webhook():
 # ─── ENTRYPOINT ───────────────────────────────────────
 ensure_flusher()  # ✅ Start flusher at module load (works with both gunicorn & direct run)
 
+# ─── ENTRYPOINT ───────────────────────────────────────
 if __name__ == "__main__":
+    ensure_flusher()
     app.run(host="0.0.0.0", port=5000)
