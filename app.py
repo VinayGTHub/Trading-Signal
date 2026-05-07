@@ -75,6 +75,7 @@ def lookup_security_id(symbol):
 
 # ─── DHAN BULK API ────────────────────────────────────
 def fetch_bulk_market_data(exchange_groups):
+    logging.info(f"Requesting Dhan: {msg}")
     url = "https://api.dhan.co/v2/marketfeed/quote"
 
     headers = {
@@ -107,6 +108,7 @@ def fetch_bulk_market_data(exchange_groups):
 # ─── TELEGRAM ─────────────────────────────────────────
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    logging.info(f"Sending Telegram: {msg}")
     try:
         requests.post(url, json={"chat_id": CHAT_ID, "text": msg}, timeout=5)
     except Exception as e:
@@ -212,7 +214,7 @@ def batch_flusher():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     global LAST_SIGNAL_TIME
-
+    logging.info(f"Received webhook: {raw}")
     try:
         raw = request.get_data().decode('utf-8')
         data = parse_signal(raw)
@@ -228,6 +230,8 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 # ─── START ────────────────────────────────────────────
+# Start background thread ALWAYS
+threading.Thread(target=batch_flusher, daemon=True).start()
+
 if __name__ == "__main__":
-    threading.Thread(target=batch_flusher, daemon=True).start()
-    app.run(port=5000)
+    app.run(host="0.0.0.0", port=5000)
