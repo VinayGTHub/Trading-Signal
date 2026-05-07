@@ -224,6 +224,10 @@ def batch_flusher():
             logging.error(f"Batch flusher error: {e}")
 
 
+@app.route("/")
+def home():
+    return "Server Running", 200
+
 # ─── WEBHOOK ──────────────────────────────────────────
 @app.route('/webhook', methods=['POST'])
 def webhook():
